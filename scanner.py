@@ -182,7 +182,7 @@ def scan_site(url: str) -> dict:
     return result
 
 
-def scan_multiple(urls: list, max_workers: int = 10) -> list:
+def scan_multiple(urls: list, max_workers: int = 30) -> list:
     """Scan multiple URLs in parallel, return results sorted by risk (highest first)."""
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
