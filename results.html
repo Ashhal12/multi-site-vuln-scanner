@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Scan Results</title>
+<style>
+  body { font-family: Arial; max-width: 900px; margin: 40px auto; }
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  th, td { padding: 10px; border: 1px solid #ddd; text-align: left; vertical-align: top; }
+  th { background: #222; color: white; }
+  .Critical { background: #ffcccc; }
+  .High { background: #ffe0b3; }
+  .Medium { background: #fff9cc; }
+  .Low { background: #e6ffe6; }
+  .Unreachable, .Unknown { background: #eee; color: #777; }
+  .badge { padding: 3px 10px; border-radius: 10px; font-weight: bold; font-size: 12px; }
+  ul { margin: 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+  <h1>Scan Results ({{ results|length }} sites)</h1>
+  <a href="/">&larr; New Scan</a>
+  <table>
+    <tr>
+      <th>Website</th>
+      <th>Risk Level</th>
+      <th>Findings</th>
+    </tr>
+    {% for r in results %}
+    <tr class="{{ r.risk.level }}">
+      <td>
+        <strong>{{ r.hostname }}</strong><br>
+        <small>{{ r.url }}</small>
+        {% if r.error %}<br><small style="color:red;">Error: {{ r.error }}</small>{% endif %}
+      </td>
+      <td><span class="badge">{{ r.risk.level }} ({{ r.risk.score }})</span></td>
+      <td>
+        {% if r.findings %}
+        <ul>
+          {% for f in r.findings %}
+          <li><strong>[{{ f.severity }}]</strong> {{ f.issue }}</li>
+          {% endfor %}
+        </ul>
+        {% else %}
+          <em>No issues found / site unreachable.</em>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</body>
+</html>
