@@ -182,13 +182,15 @@ def scan_site(url: str) -> dict:
     return result
 
 
-def scan_multiple(urls: list, max_workers: int = 50) -> list:
-    """Scan multiple URLs in parallel, return results sorted by risk (highest first)."""
+def scan_multiple(urls: list, max_workers: int = 15, batch_size: int = 15) -> list:
+    """Scan multiple URLs in parallel batches (keeps memory usage low on small servers)."""
     results = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_url = {executor.submit(scan_site, url): url for url in urls}
-        for future in concurrent.futures.as_completed(future_to_url):
-            results.append(future.result())
+    for i in range(0, len(urls), batch_size):
+        batch = urls[i:i + batch_size]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_url = {executor.submit(scan_site, url): url for url in batch}
+            for future in concurrent.futures.as_completed(future_to_url):
+                results.append(future.result())
 
     risk_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3, "Unreachable": 4, "Unknown": 5}
     results.sort(key=lambda r: risk_order.get(r["risk"]["level"], 5))
