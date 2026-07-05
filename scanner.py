@@ -127,10 +127,10 @@ def compute_risk_score(findings: list) -> dict:
 # ---------- Main Per-Site Scan ----------
 
 def scan_site(url: str) -> dict:
-    url = normalize_url(url)
-    hostname = urlparse(url).hostname
+    raw = url.strip()
+    hostname = urlparse(normalize_url(raw)).hostname
     result = {
-        "url": url,
+        "url": None,
         "hostname": hostname,
         "scanned_at": datetime.now(timezone.utc).isoformat() + "Z",
         "reachable": False,
@@ -139,20 +139,45 @@ def scan_site(url: str) -> dict:
         "error": None,
     }
 
-    try:
-        resp = requests.get(url, timeout=8, verify=False, allow_redirects=True)
-        result["reachable"] = True
-        result["status_code"] = resp.status_code
-        result["findings"].extend(check_security_headers(resp))
-    except requests.RequestException as e:
-        result["error"] = str(e)[:150]
+    # Try HTTPS first, then fall back to HTTP if HTTPS fails
+    if raw.startswith(("http://", "https://")):
+        candidates = [raw]
+    else:
+        candidates = [f"https://{raw}", f"http://{raw}"]
+
+    resp = None
+    used_url = None
+    last_error = None
+    for candidate in candidates:
+        try:
+            resp = requests.get(candidate, timeout=8, verify=False, allow_redirects=True)
+            used_url = candidate
+            break
+        except requests.RequestException as e:
+            last_error = str(e)[:150]
+            continue
+
+    if resp is None:
+        result["url"] = candidates[0]
+        result["error"] = last_error
         result["risk"] = {"score": 0, "level": "Unreachable"}
         return result
 
-    if hostname:
-        result["findings"].extend(check_ssl_cert(hostname))
+    result["url"] = used_url
+    result["reachable"] = True
+    result["status_code"] = resp.status_code
+    result["findings"].extend(check_security_headers(resp))
 
-    result["findings"].extend(check_common_exposed_paths(url))
+    if used_url.startswith("https://") and hostname:
+        result["findings"].extend(check_ssl_cert(hostname))
+    elif used_url.startswith("http://"):
+        result["findings"].append({
+            "issue": "Site does not enforce HTTPS (only HTTP reachable)",
+            "severity": "Medium",
+            "category": "SSL/TLS"
+        })
+
+    result["findings"].extend(check_common_exposed_paths(used_url))
     result["risk"] = compute_risk_score(result["findings"])
     return result
 
