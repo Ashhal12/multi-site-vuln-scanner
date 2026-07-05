@@ -43,7 +43,6 @@ def check_security_headers(resp) -> list:
         if header not in headers:
             findings.append({"issue": msg, "severity": sev, "category": "Header Misconfiguration"})
 
-    # Server banner disclosure
     if "server" in headers:
         findings.append({
             "issue": f"Server header discloses software: '{headers['server']}'",
@@ -96,9 +95,10 @@ def check_common_exposed_paths(base_url: str) -> list:
         ("admin/login", "Low", "Admin login panel publicly accessible"),
         ("backup.zip", "Medium", "Possible exposed backup archive"),
     ]
+    session = requests.Session()
     for path, sev, msg in paths_to_check:
         try:
-            r = requests.get(f"{base_url.rstrip('/')}/{path}", timeout=5, verify=False, allow_redirects=False)
+            r = session.get(f"{base_url.rstrip('/')}/{path}", timeout=3, verify=False, allow_redirects=False)
             if r.status_code == 200:
                 findings.append({"issue": msg, "severity": sev, "category": "Exposed Path"})
         except requests.RequestException:
