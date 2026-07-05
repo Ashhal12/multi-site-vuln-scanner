@@ -64,7 +64,7 @@ def check_ssl_cert(hostname: str, port: int = 443) -> list:
     findings = []
     try:
         ctx = ssl.create_default_context()
-        with socket.create_connection((hostname, port), timeout=6) as sock:
+        with socket.create_connection((hostname, port), timeout=4) as sock:
             with ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
                 cert = ssock.getpeercert()
                 not_after = cert.get("notAfter")
@@ -98,7 +98,7 @@ def check_common_exposed_paths(base_url: str) -> list:
     session = requests.Session()
     for path, sev, msg in paths_to_check:
         try:
-            r = session.get(f"{base_url.rstrip('/')}/{path}", timeout=3, verify=False, allow_redirects=False)
+            r = session.get(f"{base_url.rstrip('/')}/{path}", timeout=2, verify=False, allow_redirects=False)
             if r.status_code == 200:
                 findings.append({"issue": msg, "severity": sev, "category": "Exposed Path"})
         except requests.RequestException:
@@ -150,7 +150,7 @@ def scan_site(url: str) -> dict:
     last_error = None
     for candidate in candidates:
         try:
-            resp = requests.get(candidate, timeout=8, verify=False, allow_redirects=True)
+            resp = requests.get(candidate, timeout=5, verify=False, allow_redirects=True)
             used_url = candidate
             break
         except requests.RequestException as e:
@@ -182,7 +182,7 @@ def scan_site(url: str) -> dict:
     return result
 
 
-def scan_multiple(urls: list, max_workers: int = 30) -> list:
+def scan_multiple(urls: list, max_workers: int = 50) -> list:
     """Scan multiple URLs in parallel, return results sorted by risk (highest first)."""
     results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
