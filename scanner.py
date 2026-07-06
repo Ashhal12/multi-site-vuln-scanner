@@ -98,7 +98,8 @@ def check_common_exposed_paths(base_url: str) -> list:
     session = requests.Session()
     for path, sev, msg in paths_to_check:
         try:
-            r = session.get(f"{base_url.rstrip('/')}/{path}", timeout=2, verify=False, allow_redirects=False)
+            r = session.get(f"{base_url.rstrip('/')}/{path}", timeout=2, verify=False, allow_redirects=False, stream=True)
+            r.close()
             if r.status_code == 200:
                 findings.append({"issue": msg, "severity": sev, "category": "Exposed Path"})
         except requests.RequestException:
@@ -140,6 +141,7 @@ def scan_site(url: str) -> dict:
     }
 
     # Try HTTPS first, then fall back to HTTP if HTTPS fails
+    candidates = []
     if raw.startswith(("http://", "https://")):
         candidates = [raw]
     else:
@@ -150,7 +152,8 @@ def scan_site(url: str) -> dict:
     last_error = None
     for candidate in candidates:
         try:
-            resp = requests.get(candidate, timeout=5, verify=False, allow_redirects=True)
+            resp = requests.get(candidate, timeout=5, verify=False, allow_redirects=True, stream=True)
+            resp.close()  # we only need headers, not the body — free memory immediately
             used_url = candidate
             break
         except requests.RequestException as e:
@@ -182,7 +185,7 @@ def scan_site(url: str) -> dict:
     return result
 
 
-def scan_multiple(urls: list, max_workers: int = 15, batch_size: int = 15) -> list:
+def scan_multiple(urls: list, max_workers: int = 10, batch_size: int = 10) -> list:
     """Scan multiple URLs in parallel batches (keeps memory usage low on small servers)."""
     results = []
     for i in range(0, len(urls), batch_size):
